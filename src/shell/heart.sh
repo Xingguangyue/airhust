@@ -2,6 +2,9 @@
 set -e
 
 # 创建会话和第一个窗口。
+# 防重复：先删同名旧会话再建。2>/dev/null 只藏报错，|| true 才是关键——
+# set -e 下没有 || true，session 不存在时 kill 返回非 0 会让脚本直接退出。
+tmux kill-session -t ros_session 2>/dev/null || true
 tmux new-session -d -s ros_session -n main_nodes zsh
 tmux set-window-option -t ros_session:main_nodes pane-base-index 0
 
