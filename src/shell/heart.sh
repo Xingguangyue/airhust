@@ -11,16 +11,14 @@ tmux set-window-option -t ros_session:main_nodes pane-base-index 0
 # Pane 0：ROS 主服务。
 tmux send-keys -t ros_session:main_nodes.0 'roscore' C-m
 
-# Pane 1：飞控连接、雷达和定位。
-# 【实机按需改】fly_demo/utils.launch 是模板占位；换成你们飞机实际的
-# 飞控驱动 + 定位启动命令（要求发布 /mavros/state 和 /mavros/local_position/odom）。
+# Pane 1：飞控连接、雷达和定位（与 hover.sh 完全相同的环境命令）。
 tmux split-window -h -t ros_session:main_nodes.0 zsh
 tmux send-keys -t ros_session:main_nodes.1 'sleep 3; roslaunch fly_demo utils.launch' C-m
 
 # Pane 2：heart 任务，程序提示后由操作者输入 1，遥控器切 OFFBOARD 后起飞。
-# 环境按本仓库 clone 后的目录 ~/airhust 写；若 clone 到别处，改这个路径。
+# 工作空间用实机实际的 ~/airhust_ws（heart 就编译在这个空间里）。
 tmux split-window -h -t ros_session:main_nodes.1 zsh
-tmux send-keys -t ros_session:main_nodes.2 'sleep 8; source ~/airhust/devel/setup.zsh --extend; roslaunch mission heart.launch' C-m
+tmux send-keys -t ros_session:main_nodes.2 'sleep 8; source ~/airhust_ws/devel/setup.zsh --extend; roslaunch mission heart.launch' C-m
 
 # 整理分屏并打开会话。
 tmux select-layout -t ros_session:main_nodes tiled
