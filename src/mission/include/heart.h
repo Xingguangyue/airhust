@@ -53,8 +53,12 @@ struct HeartPath
 
 /************************************************************************
  * 函数 H2: 生成爱心航点
- *   密采样 -> 分别按 width / height 归一化 -> 按等弧长重采样
+ *   密采样 -> 分别按 width / height 缩放 -> 按等弧长重采样
  *   等弧长是为了匀速：t 均匀采样会在心尖附近挤点、圆瓣附近稀点，飞出来不匀。
+ *
+ *   ★ 以 t=0 的心口点为原点（不是几何中心）：
+ *     心形线 t=0 与 t=2π 是同一个点，把这点对齐到 (0,0) 后，
+ *     画完一圈自然回到起飞点，不需要额外飞回段。
  ************************************************************************/
 static HeartPath make_heart(float width, float height, float ds)
 {
@@ -75,8 +79,8 @@ static HeartPath make_heart(float width, float height, float ds)
 
   const double kx = width / (xmax - xmin);    // 左右比例
   const double ky = height / (ymax - ymin);   // 前后比例（竖向拉长）
-  const double cx = 0.5 * (xmin + xmax);
-  const double cy = 0.5 * (ymin + ymax);
+  const double x0 = sx[0];                    // t=0 的左右值 (=0)
+  const double y0 = sy[0];                    // t=0 的前后值 (=5)
 
   std::vector<float> acc(N + 1, 0.0f);
   for (int i = 1; i <= N; ++i)
@@ -102,8 +106,8 @@ static HeartPath make_heart(float width, float height, float ds)
     const float w = (seg > 1e-9f) ? (target - acc[j]) / seg : 0.0f;
     const double fy = sx[j] + w * (sx[j + 1] - sx[j]);
     const double fx = sy[j] + w * (sy[j + 1] - sy[j]);
-    p.fx.push_back((float)((fx - cy) * ky));  // 前后 = 高度
-    p.fy.push_back((float)((fy - cx) * kx));  // 左右 = 宽度
+    p.fx.push_back((float)((fx - y0) * ky));  // 前后 = 高度，t=0 时为 0
+    p.fy.push_back((float)((fy - x0) * kx));  // 左右 = 宽度，t=0 时为 0
   }
 
   ROS_INFO("Heart path: %d waypoints, height(x)=%.2f m, width(y)=%.2f m, perimeter=%.2f m, step=%.3f m",
@@ -112,8 +116,11 @@ static HeartPath make_heart(float width, float height, float ds)
 }
 
 /************************************************************************
- * 函数 H3: 沿爱心轨迹发设定点（画完一圈返回 true）
+ * 函数 H3: 沿爱心轨迹发设定点（画完一圈、回到起点并停稳后返回 true）
  *   type_mask / coordinate_frame / init 偏移 全部与 mission_pos_cruise 一致。
+ *
+ *   收尾：发完最后一个点后持续把目标钉在起点，等水平速度收敛再返回，
+ *   这样降落时 precision_land 锁的落点就是出发点，下降垂直。
  ************************************************************************/
 static bool heart_fly(const HeartPath &p, float ox, float oy, float z, float speed)
 {
@@ -128,13 +135,9 @@ static bool heart_fly(const HeartPath &p, float ox, float oy, float z, float spe
   }
 
   const float moved = speed * (ros::Time::now() - t0).toSec();
-  const int idx = (int)(moved / p.ds);
-  if (idx + 1 >= (int)p.fx.size())
-  {
-    started = false;
-    ROS_INFO("Heart finished in %.1f s", (ros::Time::now() - t0).toSec());
-    return true;
-  }
+  const int last = (int)p.fx.size() - 1;
+  int idx = (int)(moved / p.ds);
+  if (idx > last) idx = last;   // 画完后目标钉在最后一个点（=起点）
 
   setpoint_raw.type_mask = /*1 + 2 + 4 */ +8 + 16 + 32 + 64 + 128 + 256 + 512 /*+ 1024 */ + 2048;
   setpoint_raw.coordinate_frame = 1;
@@ -146,6 +149,19 @@ static bool heart_fly(const HeartPath &p, float ox, float oy, float z, float spe
   ROS_INFO_THROTTLE(1.0, "Heart %.0f%%  target(%.2f, %.2f, %.2f)",
                     100.0 * moved / p.length,
                     setpoint_raw.position.x, setpoint_raw.position.y, setpoint_raw.position.z);
+
+  if (idx >= last)
+  {
+    const geometry_msgs::Twist &v = local_pos.twist.twist;
+    const float vxy = (float)std::hypot(v.linear.x, v.linear.y);
+    if (vxy < 0.08f || (ros::Time::now() - t0).toSec() > p.length / speed + 8.0)
+    {
+      started = false;
+      ROS_INFO("Heart finished in %.1f s, back at start and settled (vxy=%.3f)",
+               (ros::Time::now() - t0).toSec(), vxy);
+      return true;
+    }
+  }
   return false;
 }
 
