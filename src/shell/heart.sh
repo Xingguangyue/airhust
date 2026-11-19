@@ -16,9 +16,9 @@ tmux split-window -h -t ros_session:main_nodes.0 zsh
 tmux send-keys -t ros_session:main_nodes.1 'sleep 3; roslaunch fly_demo utils.launch' C-m
 
 # Pane 2：heart 任务，程序提示后由操作者输入 1，遥控器切 OFFBOARD 后起飞。
-# 工作空间用实机实际的 ~/airhust_ws（heart 就编译在这个空间里）。
+# 工作空间用 ~/airhust（clone 时默认目录名就是这个）。
 tmux split-window -h -t ros_session:main_nodes.1 zsh
-tmux send-keys -t ros_session:main_nodes.2 'sleep 8; source ~/airhust_ws/devel/setup.zsh --extend; roslaunch mission heart.launch' C-m
+tmux send-keys -t ros_session:main_nodes.2 'sleep 8; source ~/airhust/devel/setup.zsh --extend; roslaunch mission heart.launch' C-m
 
 # 整理分屏并打开会话。
 tmux select-layout -t ros_session:main_nodes tiled
