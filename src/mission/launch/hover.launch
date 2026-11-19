@@ -1,0 +1,4 @@
+<launch>
+  <rosparam command="load" file="$(find mission)/config/hover.yaml" />
+  <node pkg="mission" type="hover" name="hover" output="screen" />
+</launch>

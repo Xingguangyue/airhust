@@ -1,0 +1,15 @@
+/.DS_Store
+**/.DS_Store
+*.DS_Store
+
+# ROS build directories
+build/
+devel/
+.Trash-1000/
+.vscode/
+
+/validation/
+/install/
+__pycache__/
+*.py[cod]
+

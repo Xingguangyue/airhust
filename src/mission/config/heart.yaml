@@ -1,0 +1,23 @@
+# 到点误差 [m]
+err_max: 0.15
+
+# 0 = 遥控器 offboard（必须遥控器切 OFFBOARD 才起飞，符合任务要求）
+# 1 = 自动 offboard（程序自己切，仅调试用）
+if_debug: 0
+
+# 飞行高度 [m]，相对起飞点
+altitude: 1.2
+
+# 爱心尺寸 [m]：height 沿前后(x)、width 沿左右(y)，height > width 才是竖向爱心
+width: 1.6
+height: 2.0
+
+# 画心速度 [m/s]，越慢越像但要留意总时长
+speed: 0.30
+
+# 画完悬停时间 [s]，之后等停稳再垂直降落
+hold_time: 3.0
+
+# 爱心中心相对起飞点的偏移 [m]
+offset_x: 0.0
+offset_y: 0.0

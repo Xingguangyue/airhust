@@ -1,0 +1,4 @@
+<launch>
+  <rosparam command="load" file="$(find mission)/config/heart.yaml" />
+  <node pkg="mission" type="heart" name="heart" output="screen" />
+</launch>
