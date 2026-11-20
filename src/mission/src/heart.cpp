@@ -7,9 +7,9 @@ float if_debug = 0;
 float err_max = 0.2;
 
 // 爱心任务参数（yaml 可覆盖）
-float heart_altitude = 1.2f;  // 飞行高度 [m]，相对初始位置
-float heart_width = 1.6f;     // 爱心左右宽度 [m]（fy 方向）
-float heart_height = 2.0f;    // 爱心前后高度 [m]（fx 方向，> width 才是竖向）
+float heart_altitude = 1.2f;  // 画心起点高度 [m]，相对初始位置（心尖会下探约 0.76 height）
+float heart_width = 0.8f;     // 爱心水平宽度 [m]（映射到飞行 x）
+float heart_height = 1.0f;    // 爱心竖直高度 [m]（映射到飞行 z，> width 才是竖向）
 float heart_offset_x = 0.0f;  // 爱心中心相对起飞点的前后偏移 [m]
 float heart_offset_y = 0.0f;  // 爱心中心相对起飞点的左右偏移 [m]
 float heart_speed = 0.30f;    // 画心速度 [m/s]

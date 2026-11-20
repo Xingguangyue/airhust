@@ -5,12 +5,13 @@ err_max: 0.15
 # 1 = 自动 offboard（程序自己切，仅调试用）
 if_debug: 0
 
-# 飞行高度 [m]，相对起飞点
+# 画心起点(心口)高度 [m]，相对起飞点；心尖会下探约 0.76*height
 altitude: 1.2
 
-# 爱心尺寸 [m]：height 沿前后(x)、width 沿左右(y)，height > width 才是竖向爱心
-width: 1.6
-height: 2.0
+# 爱心尺寸 [m]，画在 xz 竖直平面：height 沿竖直(z)、width 沿水平(x)
+# height > width 才是竖向爱心；1.0/0.8 时心尖离地约 0.44 m
+width: 0.8
+height: 1.0
 
 # 画心速度 [m/s]，越慢越像但要留意总时长
 speed: 0.30

@@ -25,13 +25,13 @@
 
 /************************************************************************
  * 函数 H1: 心形线原始参数方程
- *     sx(t) = 16 sin^3(t)                                      左右
+ *     sx(t) = 16 sin^3(t)                                      左右（宽度）
  *     sy(t) = 13cos(t) - 5cos(2t) - 2cos(3t) - cos(4t)         上下（对称轴）
  *
- * ★ 竖向爱心的关键改动 ★
- *   把 sy（尖-瓣对称轴）映射到飞行 x（前后），sx 映射到飞行 y（左右）。
- *   从上往下看（+x 为前 = 画面上方）：心尖朝后（画面下方）、两个圆瓣朝前，
- *   得到一枚「立着」的爱心，而不是躺倒的。
+ * ★ 竖向爱心：画在 xz 竖直平面 ★
+ *   sy（尖-瓣对称轴）映射到飞行 z（竖直），sx 映射到飞行 x（水平前后），
+ *   y 固定在起飞点。从侧面（沿 y 看）是一枚真正立着的爱心：心尖朝下、
+ *   两个圆瓣朝上；不是躺在水平面里的那种。
  ************************************************************************/
 static inline double heart_sample_sx(double t)
 {
@@ -45,8 +45,8 @@ static inline double heart_sample_sy(double t)
 
 struct HeartPath
 {
-  std::vector<float> fx;  // 前后（对称轴/高度），相对爱心中心 [m]
-  std::vector<float> fy;  // 左右（宽度），相对爱心中心 [m]
+  std::vector<float> fx;  // 竖直方向（对称轴/高度），画心时映射到 z [m]
+  std::vector<float> fy;  // 水平方向（宽度），画心时映射到 x [m]
   float ds = HEART_DS;    // 实际航点间距 [m]
   float length = 0.0f;    // 周长 [m]
 };
@@ -77,8 +77,8 @@ static HeartPath make_heart(float width, float height, float ds)
     ymax = std::max(ymax, sy[i]);
   }
 
-  const double kx = width / (xmax - xmin);    // 左右比例
-  const double ky = height / (ymax - ymin);   // 前后比例（竖向拉长）
+  const double kx = width / (xmax - xmin);    // 宽度比例（映射到飞行 x）
+  const double ky = height / (ymax - ymin);   // 高度比例（映射到飞行 z）
   const double x0 = sx[0];                    // t=0 的左右值 (=0)
   const double y0 = sy[0];                    // t=0 的前后值 (=5)
 
@@ -106,11 +106,11 @@ static HeartPath make_heart(float width, float height, float ds)
     const float w = (seg > 1e-9f) ? (target - acc[j]) / seg : 0.0f;
     const double fy = sx[j] + w * (sx[j + 1] - sx[j]);
     const double fx = sy[j] + w * (sy[j + 1] - sy[j]);
-    p.fx.push_back((float)((fx - y0) * ky));  // 前后 = 高度，t=0 时为 0
-    p.fy.push_back((float)((fy - x0) * kx));  // 左右 = 宽度，t=0 时为 0
+    p.fx.push_back((float)((fx - y0) * ky));  // 竖直 = 高度，t=0 时为 0
+    p.fy.push_back((float)((fy - x0) * kx));  // 水平 = 宽度，t=0 时为 0
   }
 
-  ROS_INFO("Heart path: %d waypoints, height(x)=%.2f m, width(y)=%.2f m, perimeter=%.2f m, step=%.3f m",
+  ROS_INFO("Heart path: %d waypoints, height(z)=%.2f m, width(x)=%.2f m, perimeter=%.2f m, step=%.3f m",
            (int)p.fx.size(), height, width, p.length, p.ds);
   return p;
 }
@@ -141,9 +141,10 @@ static bool heart_fly(const HeartPath &p, float ox, float oy, float z, float spe
 
   setpoint_raw.type_mask = /*1 + 2 + 4 */ +8 + 16 + 32 + 64 + 128 + 256 + 512 /*+ 1024 */ + 2048;
   setpoint_raw.coordinate_frame = 1;
-  setpoint_raw.position.x = p.fx[idx] + ox + init_position_x_take_off;
-  setpoint_raw.position.y = p.fy[idx] + oy + init_position_y_take_off;
-  setpoint_raw.position.z = z + init_position_z_take_off;
+  // xz 平面：宽度(fy)→x 水平，对称轴(fx)→z 竖直，y 固定在起飞点
+  setpoint_raw.position.x = p.fy[idx] + ox + init_position_x_take_off;
+  setpoint_raw.position.y = oy + init_position_y_take_off;
+  setpoint_raw.position.z = z + p.fx[idx] + init_position_z_take_off;
   setpoint_raw.yaw = 0.0;
 
   ROS_INFO_THROTTLE(1.0, "Heart %.0f%%  target(%.2f, %.2f, %.2f)",
@@ -153,12 +154,14 @@ static bool heart_fly(const HeartPath &p, float ox, float oy, float z, float spe
   if (idx >= last)
   {
     const geometry_msgs::Twist &v = local_pos.twist.twist;
-    const float vxy = (float)std::hypot(v.linear.x, v.linear.y);
-    if (vxy < 0.08f || (ros::Time::now() - t0).toSec() > p.length / speed + 8.0)
+    const float v3d = (float)std::sqrt(v.linear.x * v.linear.x +
+                                       v.linear.y * v.linear.y +
+                                       v.linear.z * v.linear.z);
+    if (v3d < 0.08f || (ros::Time::now() - t0).toSec() > p.length / speed + 8.0)
     {
       started = false;
-      ROS_INFO("Heart finished in %.1f s, back at start and settled (vxy=%.3f)",
-               (ros::Time::now() - t0).toSec(), vxy);
+      ROS_INFO("Heart finished in %.1f s, back at start and settled (v3d=%.3f)",
+               (ros::Time::now() - t0).toSec(), v3d);
       return true;
     }
   }
